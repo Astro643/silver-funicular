@@ -1,8 +1,7 @@
 import { Hono } from "hono"
 import { handle } from "hono/vercel"
 import { serve } from "inngest/hono"
-import { inngest } from "../src/inngest.ts"
-import { workflows } from "../src/workflow.ts"
+import { inngest, workflows } from "../src/workflow.ts"
 import { getResult } from "../src/lib/redis.ts"
 import { recordGoal } from "../src/lib/db.ts"
 
