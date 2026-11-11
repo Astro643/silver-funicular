@@ -1,7 +1,7 @@
-import { inngest } from "./inngest.ts"
 import { queue, TOPIC, GROUP, type AgentTask } from "./lib/queue.ts"
-import { executeStep } from "./agent/executor.ts"
+import type { PlannedStep } from "./agent/understand.ts"
 import { redis } from "./lib/redis.ts"
+import { inngest } from "./workflow.ts"
 import { initDb } from "./lib/db.ts"
 
 let running = true
@@ -10,6 +10,10 @@ process.on("SIGTERM", () => {
 })
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+async function executeStep(step: PlannedStep, _serverId: string) {
+  return { label: step.label, ok: false, detail: `action not implemented: ${step.action}` }
+}
 
 async function processTask(task: AgentTask) {
   const results = []
