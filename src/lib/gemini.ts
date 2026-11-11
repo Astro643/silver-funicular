@@ -1,8 +1,10 @@
 import { GoogleGenAI, type GenerateContentConfig } from "@google/genai"
 import { redis } from "./redis.ts"
 
-const KEYS = (process.env.GEMINI_API_KEYS ?? process.env.GEMINI_API_KEY ?? "")
-  .split(",")
+const KEYS = [
+  ...(process.env.GEMINI_API_KEYS ?? process.env.GEMINI_API_KEY ?? "").split(","),
+  ...[1, 2, 3, 4].map((n) => process.env[`GEMINI_API_KEY_${n}`] ?? ""),
+]
   .map((k) => k.trim())
   .filter(Boolean)
 const clients = KEYS.map((apiKey) => new GoogleGenAI({ apiKey }))
