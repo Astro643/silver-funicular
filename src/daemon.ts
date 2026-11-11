@@ -20,11 +20,12 @@ async function executeStep(step: PlannedStep, _serverId: string) {
   try {
     sandbox = await Sandbox.create()
     const cmd = await sandbox.runCommand("sh", ["-lc", step.action], { timeoutMs: 60_000 })
+    const [out, errOut] = await Promise.all([cmd.stdout(), cmd.stderr()])
     const ok = cmd.exitCode === 0
     return {
       label: step.label,
       ok,
-      detail: clip(ok ? cmd.stdout : cmd.stderr || cmd.stdout),
+      detail: clip(ok ? out : errOut || out),
     }
   } catch (err) {
     return { label: step.label, ok: false, detail: clip(String(err)) }
