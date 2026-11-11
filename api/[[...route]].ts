@@ -3,7 +3,7 @@ import { handle } from "hono/vercel"
 import { serve } from "inngest/hono"
 import { inngest } from "../src/inngest.ts"
 import { workflows } from "../src/workflow.ts"
-import { redis, getResult } from "../src/lib/redis.ts"
+import { getResult } from "../src/lib/redis.ts"
 import { recordGoal } from "../src/lib/db.ts"
 
 export const config = { runtime: "nodejs" }
@@ -37,12 +37,6 @@ app.get("/agent/:goalId", async (c) => {
     await new Promise((r) => setTimeout(r, 150))
   }
   return c.json({ status: "pending" }, 202)
-})
-
-app.post("/support", async (c) => {
-  const { key, value } = await c.req.json<{ key: string; value: string }>()
-  await redis.set(key, value)
-  return c.json({ ok: true })
 })
 
 export default handle(app)
