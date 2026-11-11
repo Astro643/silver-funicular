@@ -7,6 +7,7 @@ const KEYS = (process.env.GEMINI_API_KEYS ?? process.env.GEMINI_API_KEY ?? "")
   .filter(Boolean)
 const clients = KEYS.map((apiKey) => new GoogleGenAI({ apiKey }))
 let cursor = 0
+const failures = new Map<number, number[]>()
 
 export const MODELS = {
   strong: process.env.MODEL_STRONG ?? "gemini-3.8-flash",
@@ -28,6 +29,7 @@ async function call(model: string, prompt: string, config: GenerateContentConfig
     cursor = (i + 1) % clients.length
     try {
       const res = await clients[i].models.generateContent({ model, contents: prompt, config })
+      failures.delete(i)
       return res.text ?? ""
     } catch (e) {
       if (!isQuota(e)) throw e
@@ -35,8 +37,12 @@ async function call(model: string, prompt: string, config: GenerateContentConfig
       const msg = String((e as Error)?.message ?? "")
       const day = new Date()
       const reset = Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate() + 1)
+      const recent = (failures.get(i) ?? []).filter((t) => Date.now() - t < 900_000)
+      recent.push(Date.now())
+      failures.set(i, recent)
       const retry = Number(/retryDelay["': ]*(\d+)s/.exec(msg)?.[1] ?? 60)
-      const ttl = /per ?day|RPD/i.test(msg)
+      const daily = /per ?day|RPD/i.test(msg) || recent.length >= 3
+      const ttl = daily
         ? Math.max(60, Math.floor((reset - Date.now()) / 1000))
         : Math.min(300, Math.max(60, retry))
       await redis.set(exhausted(i), "1", { ex: ttl })
