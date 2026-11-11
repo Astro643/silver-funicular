@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "daemons": {
+    "agent-worker": {
+      "root": ".",
+      "entrypoint": "Dockerfile",
+      "command": ["node", "src/daemon.ts"],
+      "instances": { "iad1": 1 },
+      "resources": { "requests": { "memory": "512Mi" } }
+    }
+  }
+}
