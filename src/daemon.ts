@@ -1,3 +1,4 @@
+import { Sandbox } from "@vercel/sandbox"
 import { queue, TOPIC, GROUP, type AgentTask } from "./lib/queue.ts"
 import type { PlannedStep } from "./agent/understand.ts"
 import { redis } from "./lib/redis.ts"
@@ -11,8 +12,25 @@ process.on("SIGTERM", () => {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
+const clip = (s: string, max = 2000) =>
+  s.length > max ? s.slice(0, max) + "…" : s
+
 async function executeStep(step: PlannedStep, _serverId: string) {
-  return { label: step.label, ok: false, detail: `action not implemented: ${step.action}` }
+  let sandbox: Awaited<ReturnType<typeof Sandbox.create>> | undefined
+  try {
+    sandbox = await Sandbox.create()
+    const cmd = await sandbox.runCommand("sh", ["-lc", step.action], { timeoutMs: 60_000 })
+    const ok = cmd.exitCode === 0
+    return {
+      label: step.label,
+      ok,
+      detail: clip(ok ? cmd.stdout : cmd.stderr || cmd.stdout),
+    }
+  } catch (err) {
+    return { label: step.label, ok: false, detail: clip(String(err)) }
+  } finally {
+    await sandbox?.stop()
+  }
 }
 
 async function processTask(task: AgentTask) {
