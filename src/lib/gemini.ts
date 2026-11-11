@@ -18,7 +18,7 @@ const exhausted = (i: number) => `gemini:exhausted:${i}`
 
 const isQuota = (e: unknown) =>
   (e as { status?: number })?.status === 429 ||
-  /RESOURCE_EXHAUSTED|quota/i.test(String((e as Error)?.message ?? ""))
+  /RESOURCE_EXHAUSTED|quota|rate/i.test(String((e as Error)?.message ?? ""))
 
 async function call(model: string, prompt: string, config: GenerateContentConfig) {
   let last: unknown
@@ -32,9 +32,14 @@ async function call(model: string, prompt: string, config: GenerateContentConfig
     } catch (e) {
       if (!isQuota(e)) throw e
       last = e
+      const msg = String((e as Error)?.message ?? "")
       const day = new Date()
       const reset = Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate() + 1)
-      await redis.set(exhausted(i), "1", { ex: Math.max(60, Math.floor((reset - Date.now()) / 1000)) })
+      const retry = Number(/retryDelay["': ]*(\d+)s/.exec(msg)?.[1] ?? 60)
+      const ttl = /per ?day|RPD/i.test(msg)
+        ? Math.max(60, Math.floor((reset - Date.now()) / 1000))
+        : Math.min(300, Math.max(60, retry))
+      await redis.set(exhausted(i), "1", { ex: ttl })
     }
   }
   throw last ?? new Error("no GEMINI_API_KEYS configured")
