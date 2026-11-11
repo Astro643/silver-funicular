@@ -4,7 +4,7 @@ export const TOPIC = "agent-tasks"
 export const GROUP = "backend"
 export const REGION = process.env.QUEUE_REGION ?? "iad1"
 
-export const queue = new PollingQueueClient({ region: REGION })
+export const queue = new PollingQueueClient({ region: REGION, deploymentId: null })
 
 export interface AgentTask {
   goalId: string
