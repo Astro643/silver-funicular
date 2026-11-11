@@ -1,8 +1,10 @@
-import { inngest } from "./inngest.ts"
+import { Inngest } from "inngest"
 import { understand } from "./agent/understand.ts"
 import { sendTask } from "./lib/queue.ts"
 import { setResult } from "./lib/redis.ts"
 import { setGoalPlan, setGoalStatus } from "./lib/db.ts"
+
+export const inngest = new Inngest({ id: "controller" })
 
 interface GoalRequested {
   data: {
