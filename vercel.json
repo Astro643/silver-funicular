@@ -6,7 +6,7 @@
       "entrypoint": "Dockerfile",
       "command": ["node", "src/daemon.ts"],
       "instances": { "iad1": 1 },
-      "resources": { "requests": { "memory": "512Mi" } }
+      "resources": { "requests": { "memory": "1Gi" } }
     }
   }
 }
