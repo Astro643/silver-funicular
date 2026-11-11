@@ -34,7 +34,7 @@ TypeScript on Node 24 — type stripping means no build step (`node src/daemon.t
 ## Setup
 
 1. On Vercel, add the marketplace integrations to this project: **Neon** (sets `DATABASE_URL`), **Upstash Redis** (sets `UPSTASH_REDIS_REST_URL`/`TOKEN`), **Inngest** (sets `INNGEST_EVENT_KEY`/`INNGEST_SIGNING_KEY`).
-2. Add `GEMINI_API_KEYS` (comma-separated; keys from different projects each add their own quota) or a single `GEMINI_API_KEY` from [Google AI Studio](https://aistudio.google.com). Keys rotate automatically; a rate-limited key is skipped for 1-5 minutes, a daily-exhausted key until UTC midnight.
+2. Add `GEMINI_API_KEYS` (comma-separated; keys from different projects each add their own quota) or a single `GEMINI_API_KEY` from [Google AI Studio](https://aistudio.google.com). Keys rotate automatically; a rate-limited key is skipped for 1-5 minutes, a daily-exhausted key (or one that keeps rate-limiting) until UTC midnight.
 3. Optional model overrides: `MODEL_STRONG`, `MODEL_LITE`, `MODEL_SUPPORT` (see defaults in `src/lib/gemini.ts`), and `QUEUE_REGION` (default `iad1`).
 4. `vercel link && vercel env pull` for local OIDC (Queues + Sandbox auth).
 5. Deploy — `vercel.json` provisions one `agent-worker` daemon (1Gi, iad1).
