@@ -14,8 +14,7 @@ interface GoalRequested {
 
 export const workflows = [
   inngest.createFunction(
-    { id: "goal-workflow", retries: 2 },
-    { event: "agent/goal.requested" },
+    { id: "goal-workflow", retries: 2, triggers: [{ event: "agent/goal.requested" }] },
     async ({ event, step }) => {
       const { goalId, serverId, message } = (event as unknown as GoalRequested).data
 
