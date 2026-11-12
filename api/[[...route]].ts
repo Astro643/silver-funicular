@@ -2,8 +2,9 @@ import { Hono } from "hono"
 import { handle } from "hono/vercel"
 import { serve } from "inngest/hono"
 import { inngest, workflows } from "../src/workflow.ts"
-import { getResult } from "../src/lib/redis.ts"
-import { recordGoal } from "../src/lib/db.ts"
+import { getResult, redis } from "../src/lib/redis.ts"
+import { recordGoal, sql } from "../src/lib/db.ts"
+import { generate, MODELS } from "../src/lib/gemini.ts"
 
 export const config = { runtime: "nodejs" }
 
@@ -36,6 +37,44 @@ app.get("/agent/:goalId", async (c) => {
     await new Promise((r) => setTimeout(r, 150))
   }
   return c.json({ status: "pending" }, 202)
+})
+
+const SUPPORT_SYSTEM =
+  "You are Controller's support assistant for a Discord server management product. " +
+  "Answer the user's question clearly and briefly. Do not invent features."
+
+app.get("/public/status", async (c) => {
+  const check = async (p: Promise<unknown>) => {
+    try {
+      await p
+      return "operational"
+    } catch {
+      return "outage"
+    }
+  }
+  const [queue, db] = await Promise.all([check(redis.ping()), check(sql`SELECT 1`)])
+  const overall = queue === "operational" && db === "operational" ? "operational" : "outage"
+  return c.json({
+    overall,
+    label: overall === "operational" ? "All systems operational" : "Partial outage",
+    updated: new Date().toISOString(),
+    components: [
+      { name: "Agent queue", detail: "", status: queue },
+      { name: "Database", detail: "", status: db },
+    ],
+  })
+})
+
+app.post("/support/chat", async (c) => {
+  const { message, history } = await c.req.json<{ message: string; history?: { role: string; text: string }[] }>()
+  if (!message) return c.json({ detail: "message required" }, 400)
+  try {
+    const convo = (history ?? []).map((m) => `${m.role}: ${m.text}`).join("\n")
+    const reply = await generate(MODELS.support, convo ? `${convo}\nuser: ${message}` : message, SUPPORT_SYSTEM)
+    return c.json({ reply })
+  } catch {
+    return c.json({ detail: "Support is temporarily unavailable. Please try again." }, 503)
+  }
 })
 
 export default handle(app)
