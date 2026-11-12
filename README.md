@@ -28,3 +28,30 @@ Upstash Redis ◄══════════════════ Vercel Q
 - **Gemini** — tiered routing: Gemma 4 (routing + answers), Flash-Lite (light work), 3.8 Flash (planning)
 
 ## Language choice
+
+TypeScript on Node 24 — type stripping means no build step (`node src/daemon.ts`), same language as the Remix frontend, and every dependency (Inngest, Upstash, Neon, Vercel Queues, Hono, Vercel Sandbox) has a first-class TS SDK.
+
+## Setup
+
+1. On Vercel, add the marketplace integrations to this project: **Neon** (sets `DATABASE_URL`), **Upstash Redis** (sets `UPSTASH_REDIS_REST_URL`/`TOKEN`), **Inngest** (sets `INNGEST_EVENT_KEY`/`INNGEST_SIGNING_KEY`).
+2. Add your Gemini keys from [Google AI Studio](https://aistudio.google.com) — either `GEMINI_API_KEYS` (comma-separated) or `GEMINI_API_KEY_1` to `GEMINI_API_KEY_4` (keys from different projects each add their own quota). Keys rotate automatically; a rate-limited key is skipped for 1-5 minutes, a daily-exhausted key (or one that keeps rate-limiting) until UTC midnight.
+3. Optional model overrides: `MODEL_STRONG`, `MODEL_LITE`, `MODEL_SUPPORT` (see defaults in `src/lib/gemini.ts`), and `QUEUE_REGION` (default `iad1`).
+4. `vercel link && vercel env pull` for local OIDC (Queues + Sandbox auth).
+5. Deploy — `vercel.json` provisions one `agent-worker` daemon (1Gi, iad1).
+6. In the Inngest dashboard, register the serve URL: `https://<your-deployment>/api/inngest`.
+
+## API
+
+| Route | Purpose |
+|---|---|
+| `POST /api/agent` | `{message, serverId}` → `{goalId}` |
+| `GET /api/agent/:goalId` | long-polls up to 25s → result or `202 {status:"pending"}` |
+| `POST /api/agent/:goalId/confirm` | confirm the dry-run plan |
+| `POST /api/inngest` | Inngest serve endpoint (do not call directly) |
+
+Result shapes: `{status:"answered", answer}`, `{status:"plan", plan}`, `{status:"completed", results}`, `{status:"expired"}`.
+
+## Notes
+
+- Jobs must stay idempotent: Vercel sends SIGTERM and restarts instances at any time.
+- Hobby quota: 1 × 1Gi instance ≈ 744 GB-hours/month — exceeds the 420 GB-hours quota, so the daemon stops around day 17 until the quota resets (accepted trade-off). Sandbox executions and Inngest steps keep working regardless.
