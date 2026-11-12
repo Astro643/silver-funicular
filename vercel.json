@@ -4,7 +4,6 @@
     "agent-worker": {
       "root": ".",
       "entrypoint": "Dockerfile.daemon",
-      "command": ["node", "src/daemon.ts"],
       "instances": { "iad1": 1 },
       "resources": { "requests": { "memory": "1Gi" } }
     }
