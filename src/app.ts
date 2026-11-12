@@ -69,7 +69,8 @@ app.post("/support/chat", async (c) => {
     const convo = (history ?? []).map((m) => `${m.role}: ${m.text}`).join("\n")
     const reply = await generate(MODELS.support, convo ? `${convo}\nuser: ${message}` : message, SUPPORT_SYSTEM)
     return c.json({ reply })
-  } catch {
+  } catch (e) {
+    console.error("support chat failed:", e)
     return c.json({ detail: "Support is temporarily unavailable. Please try again." }, 503)
   }
 })
