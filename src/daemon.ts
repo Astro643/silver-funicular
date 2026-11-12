@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs"
 import { Sandbox } from "@vercel/sandbox"
 import { queue, TOPIC, GROUP, type AgentTask } from "./lib/queue.ts"
 import type { PlannedStep } from "./agent/understand.ts"
@@ -14,6 +15,22 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 const clip = (s: string, max = 2000) =>
   s.length > max ? s.slice(0, max) + "…" : s
+
+function logOidcState() {
+  const file = process.env.VERCEL_OIDC_TOKEN_FILE
+  let fileState = "unset"
+  if (file) {
+    try {
+      fileState = `set, ${readFileSync(file, "utf8").trim().length} bytes`
+    } catch (err) {
+      fileState = `set but unreadable: ${(err as Error).message}`
+    }
+  }
+  console.log(
+    "daemon: oidc token file", fileState,
+    "| oidc token env", process.env.VERCEL_OIDC_TOKEN ? "set" : "unset"
+  )
+}
 
 async function executeStep(step: PlannedStep, _serverId: string) {
   let sandbox: Awaited<ReturnType<typeof Sandbox.create>> | undefined
@@ -49,15 +66,27 @@ async function processTask(task: AgentTask) {
 }
 
 async function loop() {
+  let failures = 0
   while (running) {
-    const res = await queue.receive(TOPIC, GROUP, async (task: AgentTask) => processTask(task))
-    if (!res.ok) await sleep(1000)
+    try {
+      const res = await queue.receive(TOPIC, GROUP, async (task: AgentTask) => processTask(task))
+      if (!res.ok) await sleep(1000)
+      failures = 0
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err)
+      if (failures % 12 === 0) {
+        logOidcState()
+        console.error("daemon: receive failed, retrying in 5s:\n" + detail)
+      } else {
+        console.error("daemon: receive failed, retrying in 5s:", detail.split("\n")[0])
+      }
+      failures++
+      await sleep(5000)
+    }
   }
 }
 
 await initDb()
+logOidcState()
 console.log("daemon: listening on topic", TOPIC, "group", GROUP)
-loop().catch((err) => {
-  console.error("daemon: fatal", err)
-  process.exit(1)
-})
+await loop()
